@@ -1,6 +1,7 @@
 import os
 import sublime
 import sublime_plugin
+import functools
 
 try:
     from typing import List, Dict, Optional
@@ -54,7 +55,7 @@ class LspApplyWorkspaceEditCommand(sublime_plugin.WindowCommand):
 
 
 class LspApplyDocumentEditCommand(sublime_plugin.TextCommand):
-    def run(self, edit, changes: 'Optional[List[dict]]' = None, show_status=True):
+    def run(self, edit, changes: 'Optional[List[dict]]' = None, show_status=True, save=False):
 
         # Sort changes due to issues with self.view.get_regions
         # See https://github.com/tomv564/LSP/issues/325
@@ -87,6 +88,8 @@ class LspApplyDocumentEditCommand(sublime_plugin.TextCommand):
                 relative_file_path = os.path.relpath(file_path, base_dir) if base_dir else file_path
                 message = 'Applied {} change(s) to {}'.format(len(changes), relative_file_path)
                 window.status_message(message)
+        if save:
+            sublime.set_timeout_async(functools.partial(self.view.run_command, "save"), 100)
 
     def changes_sorted(self, changes: 'List[dict]') -> 'List[Dict]':
         # changes looks like this:

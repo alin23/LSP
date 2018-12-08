@@ -25,7 +25,7 @@ class LspFormatDocumentCommand(LspTextCommand):
     def is_enabled(self, event=None):
         return self.has_client_with_capability('documentFormattingProvider')
 
-    def run(self, edit):
+    def run(self, edit, save=False):
         client = client_for_view(self.view)
         if client:
             pos = self.view.sel()[0].begin()
@@ -37,11 +37,11 @@ class LspFormatDocumentCommand(LspTextCommand):
             }
             request = Request.formatting(params)
             client.send_request(
-                request, lambda response: self.handle_response(response, pos))
+                request, lambda response: self.handle_response(response, pos, save))
 
-    def handle_response(self, response, pos):
+    def handle_response(self, response, pos, save=False):
         self.view.run_command('lsp_apply_document_edit',
-                              {'changes': response})
+                              {'changes': response, 'save': save})
 
 
 class LspFormatDocumentRangeCommand(LspTextCommand):
