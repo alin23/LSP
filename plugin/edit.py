@@ -1,5 +1,6 @@
 import sublime
 import sublime_plugin
+import functools
 from .core.edit import sort_by_application_order
 from .core.logging import debug
 
@@ -42,7 +43,7 @@ class LspApplyWorkspaceEditCommand(sublime_plugin.WindowCommand):
 
 class LspApplyDocumentEditCommand(sublime_plugin.TextCommand):
 
-    def run(self, edit: 'Any', changes: 'Optional[List[TextEdit]]' = None) -> None:
+    def run(self, edit: 'Any', changes: 'Optional[List[TextEdit]]' = None, save=False) -> None:
         # Apply the changes in reverse, so that we don't invalidate the range
         # of any change that we haven't applied yet.
         if changes:
@@ -59,6 +60,9 @@ class LspApplyDocumentEditCommand(sublime_plugin.TextCommand):
                     last_row, last_col = self.view.rowcol(self.view.size())
                 else:
                     self.apply_change(region, newText, edit)
+
+        if save:
+            sublime.set_timeout_async(functools.partial(self.view.run_command, "save"), 10)
 
     def apply_change(self, region: 'sublime.Region', newText: str, edit: 'Any') -> None:
         if region.empty():

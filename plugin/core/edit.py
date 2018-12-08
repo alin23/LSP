@@ -1,5 +1,7 @@
-from .url import uri_to_filename
 import operator
+
+from .url import uri_to_filename
+
 TYPE_CHECKING = False
 if TYPE_CHECKING:
     from typing import List, Dict, Optional, Any, Iterable, Tuple
@@ -29,7 +31,6 @@ def parse_text_edit(text_edit: 'Dict[str, Any]') -> 'TextEdit':
         parse_range(text_edit['range']['end']),
         text_edit.get('newText', '')
     )
-
 
 def sort_by_application_order(changes: 'Iterable[TextEdit]') -> 'List[TextEdit]':
     # The spec reads:

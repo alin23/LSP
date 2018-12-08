@@ -1,15 +1,27 @@
 import html
 import os
+
 import sublime
 import sublime_plugin
 
+from .core.diagnostics import (
+    DiagnosticsCursor,
+    DiagnosticsUpdateWalk,
+    DiagnosticsWalker,
+    DocumentsState,
+)
 from .core.logging import debug
 from .core.panels import ensure_panel
-from .core.protocol import Diagnostic, DiagnosticSeverity, DiagnosticRelatedInformation, Point, Range
-from .core.settings import settings, PLUGIN_NAME
+from .core.protocol import (
+    Diagnostic,
+    DiagnosticRelatedInformation,
+    DiagnosticSeverity,
+    Point,
+    Range,
+)
+from .core.registry import LSPViewEventListener, windows
+from .core.settings import PLUGIN_NAME, settings
 from .core.views import range_to_region, region_to_range
-from .core.registry import windows, LSPViewEventListener
-from .core.diagnostics import DiagnosticsWalker, DiagnosticsUpdateWalk, DiagnosticsCursor, DocumentsState
 
 MYPY = False
 if MYPY:
@@ -34,10 +46,81 @@ diagnostic_severity_scopes = {
     DiagnosticSeverity.Hint: 'markup.inserted.lsp sublimelinter.gutter-mark markup.info.suggestion.lsp'
 }
 
+stylesheet = '''
+            <style>
+                html, body {
+                    background-color: #231E26;
+                    color: #ED435F;
+                    padding: 0 5px;
+                }
+
+                div.error-arrow {
+                    display: none;
+                    border-top: 0.4rem solid transparent;
+                    border-left: 0.5rem solid color(var(--redish) blend(var(--background) 30%));
+                    width: 0;
+                    height: 0;
+                }
+
+                div.error {
+                    padding: 0.4rem 0 0.4rem 0.7rem;
+                    margin: 0 0 0.2rem;
+                    border-radius: 0 0.2rem 0.2rem 0.2rem;
+                }
+
+                div.error span.message {
+                    padding-right: 0.7rem;
+                }
+
+                a.code-actions {
+                    background-color: #322B37;
+                    text-decoration: inherit;
+                    padding: 0.45rem 0.8rem;
+                    position: relative;
+                    bottom: 0.05rem;
+                    border-radius: 4px;
+                    color: #3074FF;
+                    font-weight: bold;
+                }
+            </style>
+        '''
+
 UNDERLINE_FLAGS = (sublime.DRAW_SQUIGGLY_UNDERLINE | sublime.DRAW_NO_OUTLINE | sublime.DRAW_NO_FILL |
                    sublime.DRAW_EMPTY_AS_OVERWRITE)
 
 BOX_FLAGS = sublime.DRAW_NO_FILL | sublime.DRAW_EMPTY_AS_OVERWRITE
+
+
+def create_phantom_html(text: str) -> str:
+    global stylesheet
+    formatted = "<br>".join(html.escape(line, quote=False) for line in text.splitlines())
+    return """<body id=inline-error>{}
+                <div class="error-arrow"></div>
+                <div class="error">
+                    <span class="message">{}</span>
+                    <a class="code-actions" href="code-actions">Code Actions</a>
+                </div>
+                </body>""".format(stylesheet, formatted)
+
+
+def on_phantom_navigate(view: sublime.View, href: str, point: int) -> None:
+    # TODO: don't mess with the user's cursor.
+    sel = view.sel()
+    sel.clear()
+    sel.add(sublime.Region(point))
+    view.run_command("lsp_code_actions")
+
+
+def create_phantom(view: sublime.View, diagnostic: Diagnostic) -> sublime.Phantom:
+    region = range_to_region(diagnostic.range, view)
+    # TODO: hook up hide phantom (if keeping them)
+    content = create_phantom_html(diagnostic.message)
+    return sublime.Phantom(
+        region,
+        '<p>' + content + '</p>',
+        sublime.LAYOUT_BELOW,
+        lambda href: on_phantom_navigate(view, href, region.begin())
+    )
 
 
 def format_severity(severity: int) -> str:

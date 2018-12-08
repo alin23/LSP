@@ -541,6 +541,14 @@ class WindowManager(object):
             "textDocument/publishDiagnostics",
             lambda params: self.diagnostics.receive(session.config.name, params))
 
+        client.on_notification(
+            "window/progress",
+            lambda params: [v.set_status("Progress", "{}{}{}".format(
+                params.get('title') or '',
+                " {}".format(params.get('message') or ''),
+                " {}".format("[DONE]" if params.get('done') else (params.get('progress') or '0%')),
+            )) for v in self._window.views()])
+
         self._handlers.on_initialized(session.config.name, self._window, client)
 
         client.send_notification(Notification.initialized())

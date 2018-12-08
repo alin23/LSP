@@ -129,11 +129,15 @@ class LspHoverCommand(LspTextCommand):
         for goto_kind in goto_kinds:
             if self.has_client_with_capability(goto_kind.lsp_name + "Provider"):
                 actions.append("<a href='{}'>{}</a>".format(goto_kind.lsp_name, goto_kind.label))
+                actions.append('<div class="spacer"></div>')
+
         if self.has_client_with_capability('referencesProvider'):
             actions.append("<a href='{}'>{}</a>".format('references', 'References'))
+            actions.append('<div class="spacer"></div>')
+
         if self.has_client_with_capability('renameProvider'):
             actions.append("<a href='{}'>{}</a>".format('rename', 'Rename'))
-        return "<p>" + " | ".join(actions) + "</p>"
+        return "<p class='actions'>" + "".join(actions) + "</p>"
 
     def format_diagnostic_related_info(self, info: DiagnosticRelatedInformation) -> str:
         file_path = info.location.file_path
@@ -163,16 +167,16 @@ class LspHoverCommand(LspTextCommand):
                 by_severity.setdefault(diagnostic.severity, []).append(self.format_diagnostic(diagnostic))
 
             for severity, items in by_severity.items():
-                formatted.append("<div>")
+                formatted.append("<div class='{}'>".format(class_for_severity[severity]))
                 formatted.extend(items)
                 formatted.append("</div>")
+                formatted.append('<div class="spacer"></div>')
 
             if config_name in self._actions_by_config:
                 action_count = len(self._actions_by_config[config_name])
                 if action_count > 0:
                     formatted.append("<div class=\"actions\"><a href='{}:{}'>{} ({})</a></div>".format(
                         'code-actions', config_name, 'Code Actions', action_count))
-
             formatted.append("</div>")
 
         return "".join(formatted)
@@ -217,6 +221,55 @@ class LspHoverCommand(LspTextCommand):
         contents = self.diagnostics_content() + self.hover_content()
         if contents and settings.show_symbol_action_links:
             contents += self.symbol_actions_content()
+            contents += """
+                <style>
+                    html, body {
+                        background-color: #231E26;
+                        color: #ED435F;
+                        padding: 10px;
+                    }
+
+                    div.error-arrow {
+                        display: none;
+                        border-top: 0.4rem solid transparent;
+                        border-left: 0.5rem solid color(var(--redish) blend(var(--background) 30%));
+                        width: 0;
+                        height: 0;
+                    }
+
+                    div.error {
+                        padding: 0.4rem 0 0.4rem 0.7rem;
+                        margin: 0 0 0.2rem;
+                        border-radius: 0 0.2rem 0.2rem 0.2rem;
+                    }
+
+                    div.error span.message {
+                        padding-right: 0.7rem;
+                    }
+
+                    a {
+                        background-color: #322B37;
+                        text-decoration: inherit;
+                        margin-right: 15px;
+                        padding: 0.45rem 0.8rem;
+                        border-radius: 4px;
+                        color: #3074FF;
+                        font-weight: bold;
+                    }
+                    div.spacer {
+                        display: inline;
+                        width: 10px;
+                        height: 1px;
+                        background-color: transparent;
+                    }
+                    a.code-actions {
+                        margin-top: 0;
+                    }
+                    p.actions {
+                        margin-top: 15px;
+                    }
+                </style>
+            """
 
         _test_contents.clear()
         _test_contents.append(contents)  # for testing only

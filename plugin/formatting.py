@@ -21,9 +21,9 @@ def options_for_view(view: sublime.View) -> 'Dict[str, Any]':
     return {"tabSize": view.settings().get("tab_size", 4), "insertSpaces": True}
 
 
-def apply_response_to_view(response: 'Optional[List[dict]]', view: sublime.View) -> None:
+def apply_response_to_view(response: 'Optional[List[dict]]', view: sublime.View, save=False) -> None:
     edits = list(parse_text_edit(change) for change in response) if response else []
-    view.run_command('lsp_apply_document_edit', {'changes': edits})
+    view.run_command('lsp_apply_document_edit', {'changes': edits, 'save': save})
 
 
 def wants_will_save_wait_until(session: Session) -> bool:
@@ -103,7 +103,7 @@ class LspFormatDocumentCommand(LspTextCommand):
     def is_enabled(self, event: 'Optional[dict]' = None) -> bool:
         return self.has_client_with_capability('documentFormattingProvider')
 
-    def run(self, edit: sublime.Edit) -> None:
+    def run(self, edit: sublime.Edit, save=False) -> None:
         client = self.client_with_capability('documentFormattingProvider')
         file_path = self.view.file_name()
         if client and file_path:
@@ -114,7 +114,7 @@ class LspFormatDocumentCommand(LspTextCommand):
                 "options": options_for_view(self.view)
             }
             request = Request.formatting(params)
-            client.send_request(request, lambda response: apply_response_to_view(response, self.view))
+            client.send_request(request, lambda response: apply_response_to_view(response, self.view, save=save))
 
 
 class LspFormatDocumentRangeCommand(LspTextCommand):
